@@ -9,7 +9,7 @@ import subprocess
 
 
 def print_banner():
-    help="""A simple script to download playlist/HLS files
+    help = """A simple script to download playlist/HLS files
     
 Common usage scenario: `download.py --temp-folder=temp --base-url='https://some-website.com/video-api-or-something/' --out=final.mp4`
 
@@ -18,6 +18,7 @@ The base URL must be a fully specified url with protocol information
 If the program is interrupted while downloading, you can do a `--retry` but that is not supported fully"""
 
     print(help)
+
 
 def validate_url(x):
     try:
@@ -39,6 +40,16 @@ def get_proper_urls(base_url, index_contents, additional_args):
     return urls
 
 
+def file_is_video(file_name):
+    # ffmpeg -v error -i index-temp-0.m3uindex -f null -
+    return_value = subprocess.run(["ffmpeg", "-v", "error",
+                                  "-i", file_name, "-f", "null", "-"])
+    value = return_value.returncode == 0
+    print("Checking if downloaded file {} is a video segment: {}".format(
+        file_name, value))
+    return value
+
+
 def download_url(url, filename):
     try:
         request = requests.get(url)
@@ -46,8 +57,10 @@ def download_url(url, filename):
             print("Error occured while downloading, server responded with empty packet")
             return False
 
-        open(filename, 'wb').write(request.content)
-        return True
+        with open(filename, 'wb') as downloaded_file:
+            downloaded_file.write(request.content)
+
+        return file_is_video(filename)
     except Exception as e:
         print("Error occured while downloading: '{}'".format(e))
         return False
@@ -141,9 +154,10 @@ if __name__ == "__main__":
             args.tempfolder, "index-temp-{}.m3uindex".format(index_counter))
         indexes.append(index)
 
-        if (args.retry and (not os.path.exists(index) or os.stat(index).st_size == 0)) or not args.retry:
+        if (args.retry and (not os.path.exists(index) or os.stat(index).st_size == 0 or not file_is_video(index))) or not args.retry:
             thread = threading.Thread(target=worker, name=str(
                 content), args=(concurrency_semaphore, content, index))
+            thread.daemon = True
             thread.start()
             threads.append(thread)
 
