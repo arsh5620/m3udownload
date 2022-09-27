@@ -103,7 +103,9 @@ if __name__ == "__main__":
     parser.add_argument("--retry", dest="retry", action="store_true",
                         default="", help="In case there are any missing files that weren't downloaded last time, try from there")
     parser.add_argument("--base-url", dest="baseurl", action="store",
-                        help="The base url from which to fetch index's sources")
+                        default="", help="In case there are any missing files that weren't downloaded last time, try from there")
+    parser.add_argument("--no-base-url", dest="nobaseurl", action="store_true",
+                        help="If the index file contains fully qualified URLs use this")
 
     args = parser.parse_args()
 
@@ -115,17 +117,22 @@ if __name__ == "__main__":
         print("Output file is not provided, try `--out=final.mp4` or similar")
         exit(1)
 
-    if not args.baseurl:
-        print("Base URL was not set and is required to be able to download the index's sources, try `--help` for more information.", file=sys.stderr)
-        exit(1)
+    if not args.nobaseurl:
+        if not args.baseurl:
+            print("Base URL was not set and is required to be able to download the index's sources, try `--help` for more information.", file=sys.stderr)
+            exit(1)
 
-    if not validate_url(args.baseurl):
-        print("Given base URL is not valid '{}'".format(args.baseurl))
-        exit(1)
+        if not validate_url(args.baseurl):
+            print("Given base URL is not valid '{}'".format(args.baseurl))
+            exit(1)
 
-    if not args.baseurl.strip().endswith("/"):
-        print("Base URL must end with a '/'")
-        exit(1)
+        if not args.baseurl.strip().endswith("/"):
+            print("Base URL must end with a '/'")
+            exit(1)
+
+        baseurl = args.baseurl
+    else:
+        baseurl = ""
 
     with open(args.index, "r") as index_file:
         index_contents = index_file.read()
@@ -135,7 +142,7 @@ if __name__ == "__main__":
         exit(1)
 
     content_sources = get_proper_urls(
-        args.baseurl, index_contents, args.additionalargs)
+        baseurl, index_contents, args.additionalargs)
 
     print("Downloading indexes")
 
